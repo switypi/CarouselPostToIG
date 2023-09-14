@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "dgSpecHash": "OxwnkpchiW3J6wGaoY1PeVD91v4bsTsDx7bulgU2wqivAW46tR60m76sILkvo0Bv+ptqIKEfULuylC3aFUXe+g==",
+  "success": true,
+  "projectFilePath": "C:\\Upwork\\InstagramApp\\InstagramApp.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Subhash Chakraborty\\.nuget\\packages\\microsoft.win32.systemevents\\7.0.0\\microsoft.win32.systemevents.7.0.0.nupkg.sha512",
+    "C:\\Users\\Subhash Chakraborty\\.nuget\\packages\\newtonsoft.json\\13.0.3\\newtonsoft.json.13.0.3.nupkg.sha512",
+    "C:\\Users\\Subhash Chakraborty\\.nuget\\packages\\system.configuration.configurationmanager\\7.0.0\\system.configuration.configurationmanager.7.0.0.nupkg.sha512",
+    "C:\\Users\\Subhash Chakraborty\\.nuget\\packages\\system.drawing.common\\7.0.0\\system.drawing.common.7.0.0.nupkg.sha512",
+    "C:\\Users\\Subhash Chakraborty\\.nuget\\packages\\system.security.cryptography.protecteddata\\7.0.0\\system.security.cryptography.protecteddata.7.0.0.nupkg.sha512",
+    "C:\\Users\\Subhash Chakraborty\\.nuget\\packages\\system.security.permissions\\7.0.0\\system.security.permissions.7.0.0.nupkg.sha512",
+    "C:\\Users\\Subhash Chakraborty\\.nuget\\packages\\system.windows.extensions\\7.0.0\\system.windows.extensions.7.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
