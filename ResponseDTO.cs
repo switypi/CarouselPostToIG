@@ -25,7 +25,7 @@ namespace InstagramApp
 
     public class Container
     {
-        public string Id { get; set; }
+        public string id { get; set; }
     }
 
     public class DataExt

@@ -11,6 +11,7 @@ using System.ComponentModel;
 using System.Threading.Tasks.Dataflow;
 using Newtonsoft.Json.Linq;
 using System.Net.Http.Json;
+using System.Reflection;
 
 namespace InstagramApp
 {
@@ -38,12 +39,70 @@ namespace InstagramApp
 
         }
 
+        public void Reprocess()
+        {
+             
+            Console.WriteLine("Press Ctrl+C to exit OR Ctrl+R to re-start.");
+            var info = Console.ReadKey(true);
+            if (info.Modifiers.HasFlag(ConsoleModifiers.Control) && info.Key == ConsoleKey.R)
+            {
+                Console.Clear();
+                Start();
+            }
+
+            if (info.Modifiers.HasFlag(ConsoleModifiers.Control) && info.Key == ConsoleKey.C)
+            {
+                Environment.Exit(0);
+            }
+        }
+
+        public void Start()
+        {
+           
+          
+            Console.WriteLine("Please input image urls.You can input max of 5 or minimum of 2 urls");
+            int numberOfUrls = 0;
+            List<string> urls = new List<string>();
+            do
+            {
+                string url = Console.ReadLine();
+                if (!string.IsNullOrEmpty(url))
+                {
+                    urls.Add(url);
+                }
+                numberOfUrls = numberOfUrls + 1;
+            } while (numberOfUrls < 5);
+
+            if (urls.Count > 1)
+            {
+                IEnumerable<string> files = urls;
+                this.files = files.ToList();
+
+                Console.WriteLine("Connecting Instagram for security code");
+                ResponseDTO dto = GetCode();
+                Console.WriteLine("Go to the link {0}, enter the security code {1}", dto.verification_uri, dto.user_code);
+                Console.WriteLine("Waiting for authorization");
+                StartAuthorizationCheck(dto);
+                Console.ReadLine();
+                
+
+            }
+            else
+            {
+                Console.WriteLine("For corousal post,a minimum of 2 image urls are required.");
+                Console.WriteLine("");
+                Console.ReadLine();
+                Reprocess();
+            }
+
+        }
+
         private void _timer_Elapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
             this.StartAuthorizationCheck(dto);
         }
 
-        private void _backgroundWorker_RunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
+        private async void _backgroundWorker_RunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
         {
             if ((e.Result as ResponseDTO).responseCode == ErrorCodes.ServerError)
             {
@@ -66,7 +125,25 @@ namespace InstagramApp
                 }
                 else
                 {
-                    this.PostToInstagram(tokenDto);
+                    Console.WriteLine("Token retrieval successful.");
+                    Console.WriteLine("Preparing for Instagram corousal post.1-Generating containers");
+                    var containerIds = await this.PostToInstagram(tokenDto);
+                    Console.WriteLine("Preparing for Instagram corousal post. 2-Combining containers.");
+                    Container cn = CreateSingleContainer(string.Join(",", containerIds), tokenDto);
+                    Console.WriteLine("Preparing for Instagram corousal post. 3-Posting to Instagram.");
+                    if (cn.id.Length > 0)
+                    {
+                        PublishContainer(cn.id, tokenDto);
+                        Console.WriteLine("carousel post is successfull.");
+                        Console.WriteLine("Press Enter..");
+                    }
+                    else
+                    {
+                        Console.WriteLine("carousel post is un-successfull.Try after some time");
+                        Console.WriteLine("Press Enter..");
+                    }
+                    Reprocess();
+
                 }
             }
         }
@@ -114,7 +191,7 @@ namespace InstagramApp
                 client.BaseAddress = new Uri("https://graph.facebook.com/v17.0/device/");
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                var parameters = new Dictionary<string, string> { { "access_token", _apiKey+"|"+_appClientToken }, { "scope", "business_management,instagram_content_publish,pages_show_list" }};
+                var parameters = new Dictionary<string, string> { { "access_token", _apiKey + "|" + _appClientToken }, { "scope", "business_management,instagram_content_publish,pages_show_list" } };
                 var encodedContent = new FormUrlEncodedContent(parameters);
                 HttpResponseMessage msg = client.PostAsync($"login", encodedContent).Result;
                 if (msg.StatusCode == System.Net.HttpStatusCode.OK)
@@ -164,9 +241,9 @@ namespace InstagramApp
             }
         }
 
-        public async Task PostToInstagram(ResponseDTO dto)
+        public async Task<List<string>> PostToInstagram(ResponseDTO dto)
         {
-            List<Task<JObject>> taskList = new List<Task<JObject>>();
+            List<string> taskList = new List<string>();
             var endpoint = dto.data.First().instagram_business_account.id + "/media";
             var socketsHttpHandler = new SocketsHttpHandler()
             {
@@ -183,15 +260,15 @@ namespace InstagramApp
                 var encodedContent = new FormUrlEncodedContent(parameters);
 
                 HttpResponseMessage msg = await client.PostAsync($"{endpoint}", encodedContent);
-                taskList.Add(msg.Content.ReadFromJsonAsync<JObject>());
+                Container res = System.Text.Json.JsonSerializer.Deserialize<Container>(msg.Content.ReadAsStringAsync().Result);
+                taskList.Add(res.id);
             }
-            Task t = Task.WhenAll(taskList.ToArray());
-
+            return taskList;
         }
 
         public Container CreateSingleContainer(string containerIds, ResponseDTO dto)
         {
-            var endpoint = dto.instagram_business_account.id + "/media";
+            var endpoint = dto.data.First().instagram_business_account.id + "/media";
             try
             {
                 using (var client = new HttpClient())
@@ -199,7 +276,7 @@ namespace InstagramApp
                     client.BaseAddress = new Uri("https://graph.facebook.com/v17.0/");
                     client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                    var parameters = new Dictionary<string, string> { { "media_type ", "CAROUSEL" }, { "children ", containerIds } };
+                    var parameters = new Dictionary<string, string> { { "media_type", "CAROUSEL" }, { "children", containerIds }, { "access_token", dto.data.First().access_token } };
                     var encodedContent = new FormUrlEncodedContent(parameters);
                     HttpResponseMessage msg = client.PostAsync($"{endpoint}", encodedContent).Result;
                     if (msg.StatusCode == System.Net.HttpStatusCode.OK)
@@ -209,7 +286,7 @@ namespace InstagramApp
                     }
                     else
                     {
-                        return new Container { Id = "" };
+                        return new Container { id = "" };
                     }
                 }
             }
@@ -222,7 +299,7 @@ namespace InstagramApp
 
         public Container PublishContainer(string containerId, ResponseDTO dto)
         {
-            var endpoint = dto.instagram_business_account.id + "/media_publish";
+            var endpoint = dto.data.First().instagram_business_account.id + "/media_publish";
             try
             {
                 using (var client = new HttpClient())
@@ -230,7 +307,7 @@ namespace InstagramApp
                     client.BaseAddress = new Uri("https://graph.facebook.com/v17.0/");
                     client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                    var parameters = new Dictionary<string, string> { { "creation_id", containerId } };
+                    var parameters = new Dictionary<string, string> { { "creation_id", containerId }, { "access_token", dto.data.First().access_token } };
                     var encodedContent = new FormUrlEncodedContent(parameters);
                     HttpResponseMessage msg = client.PostAsync($"{endpoint}", encodedContent).Result;
                     if (msg.StatusCode == System.Net.HttpStatusCode.OK)
@@ -240,7 +317,7 @@ namespace InstagramApp
                     }
                     else
                     {
-                        return new Container { Id = "" };
+                        return new Container { id = "" };
                     }
                 }
             }
