@@ -191,7 +191,7 @@ namespace InstagramApp
                 client.BaseAddress = new Uri("https://graph.facebook.com/v17.0/device/");
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                var parameters = new Dictionary<string, string> { { "access_token", _apiKey + "|" + _appClientToken }, { "scope", "business_management,instagram_content_publish,pages_show_list" } };
+                var parameters = new Dictionary<string, string> { { "access_token", _apiKey + "|" + _appClientToken }, { "scope", "business_management,instagram_basic,instagram_content_publish,pages_show_list" } };
                 var encodedContent = new FormUrlEncodedContent(parameters);
                 HttpResponseMessage msg = client.PostAsync($"login", encodedContent).Result;
                 if (msg.StatusCode == System.Net.HttpStatusCode.OK)
@@ -224,7 +224,7 @@ namespace InstagramApp
                 client.BaseAddress = new Uri("https://graph.facebook.com/v17.0/");
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                var parametersGet = new Dictionary<string, string> { { "access_token", dto.access_token }, { "fields", "access_token,instagram_basic,instagram_business_account,id" } };
+                var parametersGet = new Dictionary<string, string> { { "access_token", dto.access_token }, { "fields", "access_token,instagram_business_account,id" } };
                 var encodeGet = new FormUrlEncodedContent(parametersGet);
                 var queryGet = encodeGet.ReadAsStringAsync().Result;
 
