@@ -20,12 +20,24 @@ namespace InstagramApp
         public List<DataExt> data { get; set; }
         public InstagramBusinessAccount instagram_business_account { get; set; }
 
+        public bool isToken_retrived { get; set; }
+
         public ErrorCodes responseCode { get; set; }
+
+        public bool isTokenValid { get; set; }
     }
 
     public class Container
     {
         public string id { get; set; }
+        public Error error { get; set; }
+       
+    }
+
+    public class Error
+    {
+        public string message { get; set; }
+
     }
 
     public class DataExt
@@ -46,5 +58,27 @@ namespace InstagramApp
         Success,
 
 
+    }
+
+    public class TokenDataItem
+    {
+        /// <summary>
+        /// Check for Fb/IG
+        /// </summary>
+        public bool is_valid { get; set; }
+        public ErrorInfo error { get; set; }
+
+    }
+    public class ErrorInfo
+    {
+        public string message { get; set; }
+        public string type { get; set; }
+    }
+
+    public class GraphTokenResponse
+    {
+        public ErrorInfo error { get; set; }
+        public string error_description { get; set; }
+        public TokenDataItem data { get; set; }
     }
 }
