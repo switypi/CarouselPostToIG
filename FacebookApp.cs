@@ -304,25 +304,18 @@ namespace InstagramApp
                     client.BaseAddress = new Uri("https://graph.facebook.com/v17.0/device/");
                     client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                    var parameters = new Dictionary<string, string> { { "access_token", _apiKey + "|" + _appClientToken }, { "scope", "business_management,instagram_content_publish,pages_show_list,instagram_basic" } };
-                    var encodedContent = new FormUrlEncodedContent(parameters);
-                    HttpResponseMessage msg = client.PostAsync($"login", encodedContent).Result;
-                    if (msg.StatusCode == System.Net.HttpStatusCode.OK)
-                    {
-                        dto = System.Text.Json.JsonSerializer.Deserialize<ResponseDTO>(msg.Content.ReadAsStringAsync().Result);
-                        //dto;
-                    }
-                    else
-                    {
-                        dto = new ResponseDTO { code = "" };
-                    }
+                var parameters = new Dictionary<string, string> { { "access_token", _apiKey + "|" + _appClientToken }, { "scope", "business_management,instagram_basic,instagram_content_publish,pages_show_list" } };
+                var encodedContent = new FormUrlEncodedContent(parameters);
+                HttpResponseMessage msg = client.PostAsync($"login", encodedContent).Result;
+                if (msg.StatusCode == System.Net.HttpStatusCode.OK)
+                {
+                    ResponseDTO res = System.Text.Json.JsonSerializer.Deserialize<ResponseDTO>(msg.Content.ReadAsStringAsync().Result);
+                    return res;
                 }
-                //return dto;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("An error occured. " + ex.Message);
-                Reprocess();
+                else
+                {
+                    return new ResponseDTO { code = "" };
+                }
             }
         }
 
