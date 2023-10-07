@@ -13,6 +13,7 @@ using Newtonsoft.Json.Linq;
 using System.Net.Http.Json;
 using System.Reflection;
 using Newtonsoft.Json;
+using System.Globalization;
 
 namespace InstagramApp
 {
@@ -27,6 +28,7 @@ namespace InstagramApp
         ResponseDTO tokenDto;
         private bool isFirstTime = true;
         private string caption;
+        private DateTime dateTime;
 
         public List<string> files { get; set; }
         // private HttpClient _httpClient;
@@ -95,59 +97,86 @@ namespace InstagramApp
 
         public void Start()
         {
-            //if (dto != null)
-            //{
-            //    dto = null;
-            //    tokenDto = null;
-            //}
 
-            //dto = new ResponseDTO();
-            //tokenDto = new ResponseDTO();
-            Console.WriteLine("Please input image urls.You can input max of 5 or minimum of 2 urls");
-            int numberOfUrls = 0;
-            List<string> urls = new List<string>();
-            do
+            try
             {
-                string url = Console.ReadLine();
-                if (!string.IsNullOrEmpty(url))
+                Console.WriteLine("Please input image urls.You can input max of 5 or minimum of 2 urls");
+                int numberOfUrls = 0;
+                List<string> urls = new List<string>();
+                do
                 {
-                    urls.Add(url);
-                }
-                numberOfUrls = numberOfUrls + 1;
-            } while (numberOfUrls < 5);
+                    string url = Console.ReadLine();
+                    if (!string.IsNullOrEmpty(url))
+                    {
+                        urls.Add(url);
+                    }
+                    numberOfUrls = numberOfUrls + 1;
+                } while (numberOfUrls < 5);
 
-            if (urls.Count > 1)
-            {
-                IEnumerable<string> files = urls;
-                this.files = files.ToList();
-
-                Console.WriteLine("Enter description for the corousal.");
-                caption = Console.ReadLine();
-
-                Console.WriteLine("Connecting Instagram for security code");
-                if (dto.isToken_retrived == false)
+                if (urls.Count > 1)
                 {
-                    GetCode();
-                    Console.WriteLine("Go to the link {0}, enter the security code {1}", dto.verification_uri, dto.user_code);
-                    Console.WriteLine("Waiting for authorization");
+                    IEnumerable<string> files = urls;
+                    this.files = files.ToList();
+
+                    Console.WriteLine("Enter description for the corousal.");
+                    caption = Console.ReadLine();
+
+                    
+                    CheckDatetime();
+
+                    Console.WriteLine("Connecting Instagram for security code");
+                    if (dto.isToken_retrived == false)
+                    {
+                        dto = GetCode();
+                        Console.WriteLine("Go to the link {0}, enter the security code {1}", dto.verification_uri, dto.user_code);
+                        Console.WriteLine("Waiting for authorization");
+                    }
+
+                    StartAuthorizationCheck(dto);
+                    Console.ReadLine();
+
+                    Reprocess();
+
                 }
-
-                StartAuthorizationCheck(dto);
-                Console.ReadLine();
-
-                Reprocess();
-
+                else
+                {
+                    Console.WriteLine("For corousal post,a minimum of 2 image urls are required.");
+                    //Console.WriteLine("");
+                    //Console.ReadLine();
+                    Reprocess();
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Console.WriteLine("For corousal post,a minimum of 2 image urls are required.");
-                //Console.WriteLine("");
-                //Console.ReadLine();
-                Reprocess();
+                Console.WriteLine("An error occured ", ex.Message);
             }
 
         }
+        private void CheckDatetime()
+        {
+            Console.WriteLine("Enter date time in mm/dd/yyyy hh:mm:ss format.");
 
+            string dt = Console.ReadLine();
+            var ret = DateTime.TryParseExact(dt, "MM/dd/yyyy HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out dateTime);
+            if (!ret)
+            {
+                Console.WriteLine("Date time is not in specified format.Please try again.");
+                CheckDatetime();
+            }
+            else
+            {
+                
+                TimeSpan t = dateTime.Subtract(DateTime.Now);
+                bool t2 = dateTime < dateTime.AddDays(180) ? true : false;
+                if (t.Minutes < 12 || t2 == false)
+                {
+                    Console.WriteLine("Schedule date time must be atleast 12 minutes from current date time and not more than 180 days.");
+                    CheckDatetime();
+                }
+
+            }
+
+        }
         private void _timer_Elapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
             this.StartAuthorizationCheck(dto);
@@ -244,9 +273,10 @@ namespace InstagramApp
             }
             catch (Exception ex)
             {
-                Console.WriteLine("An error occured." + ex.Message);
-                //Reprocess();
-                operationAchieved?.Invoke(this, dto);
+                Console.WriteLine("An error occured." + ex.Message + ". Re-starting the process.");
+                Start();
+                Console.ReadLine();
+
             }
         }
 
@@ -295,8 +325,9 @@ namespace InstagramApp
             }
         }
 
-        public void GetCode()
+        public ResponseDTO GetCode()
         {
+
             try
             {
                 using (var client = new HttpClient())
@@ -304,18 +335,23 @@ namespace InstagramApp
                     client.BaseAddress = new Uri("https://graph.facebook.com/v17.0/device/");
                     client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                var parameters = new Dictionary<string, string> { { "access_token", _apiKey + "|" + _appClientToken }, { "scope", "business_management,instagram_basic,instagram_content_publish,pages_show_list" } };
-                var encodedContent = new FormUrlEncodedContent(parameters);
-                HttpResponseMessage msg = client.PostAsync($"login", encodedContent).Result;
-                if (msg.StatusCode == System.Net.HttpStatusCode.OK)
-                {
-                    ResponseDTO res = System.Text.Json.JsonSerializer.Deserialize<ResponseDTO>(msg.Content.ReadAsStringAsync().Result);
-                    return res;
+                    var parameters = new Dictionary<string, string> { { "access_token", _apiKey + "|" + _appClientToken }, { "scope", "business_management,instagram_basic,instagram_content_publish,pages_show_list" } };
+                    var encodedContent = new FormUrlEncodedContent(parameters);
+                    HttpResponseMessage msg = client.PostAsync($"login", encodedContent).Result;
+                    if (msg.StatusCode == System.Net.HttpStatusCode.OK)
+                    {
+                        dto = System.Text.Json.JsonSerializer.Deserialize<ResponseDTO>(msg.Content.ReadAsStringAsync().Result);
+                        return dto;
+                    }
+                    else
+                    {
+                        return new ResponseDTO { code = msg.Content.ReadAsStringAsync().Result };
+                    }
                 }
-                else
-                {
-                    return new ResponseDTO { code = "" };
-                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
             }
         }
 
@@ -426,12 +462,13 @@ namespace InstagramApp
             var endpoint = dto.data.First().instagram_business_account.id + "/media_publish";
             try
             {
+
                 using (var client = new HttpClient())
                 {
                     client.BaseAddress = new Uri("https://graph.facebook.com/v17.0/");
                     client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                    var parameters = new Dictionary<string, string> { { "creation_id", containerId }, { "access_token", dto.data.First().access_token } };
+                    var parameters = new Dictionary<string, string> { { "creation_id", containerId },{ "published", "false" }, { "scheduled_publish_time", ((DateTimeOffset)dateTime).ToUnixTimeSeconds().ToString() }, { "access_token", dto.data.First().access_token } };
                     var encodedContent = new FormUrlEncodedContent(parameters);
                     HttpResponseMessage msg = client.PostAsync($"{endpoint}", encodedContent).Result;
                     if (msg.StatusCode == System.Net.HttpStatusCode.OK)
